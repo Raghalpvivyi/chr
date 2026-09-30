@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <title>الجدول الدوري التفاعلي ثلاثي الأبعاد</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap');
+
+        body {
+            margin: 0;
+            background-color: #000000;
+            color: #fff;
+            font-family: 'Cairo', sans-serif;
+            overflow: hidden;
+            background: radial-gradient(circle at center, #001111 0%, #000000 100%);
+        }
+
+        a {
+            color: #00ffff;
+        }
+
+        #menu {
+            position: absolute;
+            bottom: 20px;
+            width: 100%;
+            text-align: center;
+            z-index: 100;
+        }
+
+        button {
+            color: rgba(127, 255, 255, 0.75);
+            background: transparent;
+            outline: 1px solid rgba(127, 255, 255, 0.75);
+            border: 0px;
+            padding: 10px 25px;
+            margin: 0 10px;
+            cursor: pointer;
+            font-size: 16px;
+            font-family: 'Cairo', sans-serif;
+            font-weight: bold;
+            border-radius: 5px;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.2);
+        }
+
+        button:hover {
+            background-color: rgba(0, 255, 255, 0.5);
+            color: #ffffff;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.8);
+            outline: 1px solid rgba(255, 255, 255, 0.75);
+        }
+
+        button:active {
+            color: #000000;
+            background-color: rgba(0, 255, 255, 1);
+        }
+
+        .element {
+            width: 120px;
+            height: 160px;
+            box-shadow: 0px 0px 12px rgba(0, 255, 255, 0.5);
+            border: 1px solid rgba(127, 255, 255, 0.25);
+            font-family: 'Cairo', sans-serif;
+            text-align: center;
+            cursor: default;
+            transition: box-shadow 0.3s ease, border 0.3s ease;
+            background-color: rgba(0, 40, 40, 0.75);
+            border-radius: 8px;
+        }
+
+        .element:hover {
+            box-shadow: 0px 0px 20px rgba(0, 255, 255, 0.9);
+            border: 1px solid rgba(127, 255, 255, 0.75);
+            z-index: 1;
+        }
+
+        .element .number {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 14px;
+            color: rgba(127, 255, 255, 0.9);
+            font-weight: bold;
+        }
+
+        .element .symbol {
+            position: absolute;
+            top: 40px;
+            left: 0px;
+            right: 0px;
+            font-size: 50px;
+            font-weight: bold;
+            color: rgba(255, 255, 255, 0.9);
+            text-shadow: 0 0 10px rgba(0, 255, 255, 0.8);
+            direction: ltr;
+        }
+
+        .element .details {
+            position: absolute;
+            bottom: 10px;
+            left: 0px;
+            right: 0px;
+            font-size: 13px;
+            color: rgba(127, 255, 255, 0.8);
+            line-height: 1.2;
+        }
+
+        #container {
+            width: 100%;
+            height: 100vh;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+    </style>
+
+    <!-- Import maps polyfill -->
+    <script async src="https://unpkg.com/es-module-shims@1.8.0/dist/es-module-shims.js"></script>
+    
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+                "@tweenjs/tween.js": "https://unpkg.com/@tweenjs/tween.js@23.1.1/dist/tween.esm.js"
+            }
+        }
+    </script>
+</head>
+<body>
+
+    <div id="container"></div>
+    <div id="menu">
+        <button id="table">جدول</button>
+        <button id="sphere">كرة</button>
+        <button id="helix">حلزوني</button>
+        <button id="grid">شبكة</button>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import TWEEN from '@tweenjs/tween.js';
+        import { TrackballControls } from 'three/addons/controls/TrackballControls.js';
+        import { CSS3DRenderer, CSS3DObject } from 'three/addons/renderers/CSS3DRenderer.js';
+
+        // بيانات 118 عنصر كاملة
+        // الترتيب: [الرمز، الاسم بالعربي، الكتلة الذرية، العمود، الصف]
+        const tableData = [
+            "H", "هيدروجين", "1.008", 1, 1,
+            "He", "هيليوم", "4.002", 18, 1,
+            "Li", "ليثيوم", "6.94", 1, 2,
+            "Be", "بيريليوم", "9.012", 2, 2,
+            "B", "بورون", "10.81", 13, 2,
+            "C", "كربون", "12.011", 14, 2,
+            "N", "نيتروجين", "14.007", 15, 2,
+            "O", "أكسجين", "15.999", 16, 2,
+            "F", "فلور", "18.998", 17, 2,
+            "Ne", "نيون", "20.180", 18, 2,
+            "Na", "صوديوم", "22.990", 1, 3,
+            "Mg", "مغنيسيوم", "24.305", 2, 3,
+            "Al", "ألومنيوم", "26.982", 13, 3,
+            "Si", "سيليكون", "28.085", 14, 3,
+            "P", "فوسفور", "30.974", 15, 3,
+            "S", "كبريت", "32.06", 16, 3,
+            "Cl", "كلور", "35.45", 17, 3,
+            "Ar", "أرغون", "39.95", 18, 3,
+            "K", "بوتاسيوم", "39.098", 1, 4,
+            "Ca", "كالسيوم", "40.078", 2, 4,
+            "Sc", "سكانديوم", "44.956", 3, 4,
+            "Ti", "تيتانيوم", "47.867", 4, 4,
+            "V", "فاناديوم", "50.942", 5, 4,
+            "Cr", "كروم", "51.996", 6, 4,
+            "Mn", "منغنيز", "54.938", 7, 4,
+            "Fe", "حديد", "55.845", 8, 4,
+            "Co", "كوبالت", "58.933", 9, 4,
+            "Ni", "نيكل", "58.693", 10, 4,
+            "Cu", "نحاس", "63.546", 11, 4,
+            "Zn", "زنك", "65.38", 12, 4,
+            "Ga", "غاليوم", "69.723", 13, 4,
+            "Ge", "جرمانيوم", "72.630", 14, 4,
+            "As", "زرنيخ", "74.922", 15, 4,
+            "Se", "سيلينيوم", "78.971", 16, 4,
+            "Br", "بروم", "79.904", 17, 4,
+            "Kr", "كريبتون", "83.798", 18, 4,
+            "Rb", "روبيديوم", "85.468", 1, 5,
+            "Sr", "سترونتيوم", "87.62", 2, 5,
+            "Y", "إيتريوم", "88.906", 3, 5,
+            "Zr", "زركونيوم", "91.224", 4, 5,
+            "Nb", "نيوبيوم", "92.906", 5, 5,
+            "Mo", "موليبدينوم", "95.95", 6, 5,
+            "Tc", "تكنيتيوم", "98", 7, 5,
+            "Ru", "روثينيوم", "101.07", 8, 5,
+            "Rh", "روديوم", "102.91", 9, 5,
+            "Pd", "بالاديوم", "106.42", 10, 5,
+            "Ag", "فضة", "107.87", 11, 5,
+            "Cd", "كادميوم", "112.41", 12, 5,
+            "In", "إنديوم", "114.82", 13, 5,
+            "Sn", "قصدير", "118.71", 14, 5,
+            "Sb", "إثمد", "121.76", 15, 5,
+            "Te", "تيلوريوم", "127.60", 16, 5,
+            "I", "يود", "126.90", 17, 5,
+            "Xe", "زينون", "131.29", 18, 5,
+            "Cs", "سيزيوم", "132.91", 1, 6,
+            "Ba", "باريوم", "137.33", 2, 6,
+            "La", "لانثانوم", "138.91", 4, 9,
+            "Ce", "سيريوم", "140.12", 5, 9,
+            "Pr", "براسوديميوم", "140.91", 6, 9,
+            "Nd", "نيوديميوم", "144.24", 7, 9,
+            "Pm", "بروميثيوم", "145", 8, 9,
+            "Sm", "ساماريوم", "150.36", 9, 9,
+            "Eu", "يوروبيوم", "151.96", 10, 9,
+            "Gd", "غادولينيوم", "157.25", 11, 9,
+            "Tb", "تيربيوم", "158.93", 12, 9,
+            "Dy", "ديسبروزيوم", "162.50", 13, 9,
+            "Ho", "هولميوم", "164.93", 14, 9,
+            "Er", "إربيوم", "167.26", 15, 9,
+            "Tm", "ثوليوم", "168.93", 16, 9,
+            "Yb", "إيتربيوم", "173.05", 17, 9,
+            "Lu", "لوتيتيوم", "174.97", 18, 9,
+            "Hf", "هافنيوم", "178.49", 4, 6,
+            "Ta", "تانتالوم", "180.95", 5, 6,
+            "W", "تنغستن", "183.84", 6, 6,
+            "Re", "رينيوم", "186.21", 7, 6,
+            "Os", "أوزميوم", "190.23", 8, 6,
+            "Ir", "إريديوم", "192.22", 9, 6,
+            "Pt", "بلاتين", "195.08", 10, 6,
+            "Au", "ذهب", "196.97", 11, 6,
+            "Hg", "زئبق", "200.59", 12, 6,
+            "Tl", "ثاليوم", "204.38", 13, 6,
+            "Pb", "رصاص", "207.2", 14, 6,
+            "Bi", "بزموت", "208.98", 15, 6,
+            "Po", "بولونيوم", "209", 16, 6,
+            "At", "أستاتين", "210", 17, 6,
+            "Rn", "رادون", "222", 18, 6,
+            "Fr", "فرنسيوم", "223", 1, 7,
+            "Ra", "راديوم", "226", 2, 7,
+            "Ac", "أكتينيوم", "227", 4, 10,
+            "Th", "ثوريوم", "232.04", 5, 10,
+            "Pa", "بروتكتينيوم", "231.04", 6, 10,
+            "U", "يورانيوم", "238.03", 7, 10,
+            "Np", "نبتونيوم", "237", 8, 10,
+            "Pu", "بلوتونيوم", "244", 9, 10,
+            "Am", "أمريسيوم", "243", 10, 10,
+            "Cm", "كوريوم", "247", 11, 10,
+            "Bk", "بركليوم", "247", 12, 10,
+            "Cf", "كاليفورنيوم", "251", 13, 10,
+            "Es", "أينشتاينيوم", "252", 14, 10,
+            "Fm", "فيرميوم", "257", 15, 10,
+            "Md", "مندليفيوم", "258", 16, 10,
+            "No", "نوبليوم", "259", 17, 10,
+            "Lr", "لورنسيوم", "262", 18, 10,
+            "Rf", "رذرفورديوم", "267", 4, 7,
+            "Db", "دوبنيوم", "268", 5, 7,
+            "Sg", "سيبورغيوم", "269", 6, 7,
+            "Bh", "بوريوم", "270", 7, 7,
+            "Hs", "هاسيوم", "270", 8, 7,
+            "Mt", "مايتنريوم", "278", 9, 7,
+            "Ds", "دارْمشتاتيوم", "281", 10, 7,
+            "Rg", "رونتجينيوم", "281", 11, 7,
+            "Cn", "كوبرنيسيوم", "285", 12, 7,
+            "Nh", "نيهونيوم", "286", 13, 7,
+            "Fl", "فليروفيوم", "289", 14, 7,
+            "Mc", "موسكوفيوم", "289", 15, 7,
+            "Lv", "ليفرموريوم", "293", 16, 7,
+            "Ts", "تينيسين", "294", 17, 7,
+            "Og", "أوغانيسون", "294", 18, 7
+        ];
+
+        let camera, scene, renderer, controls;
+        const objects = [];
+        const targets = { table: [], sphere: [], helix: [], grid: [] };
+
+        init();
+        animate();
+
+        function init() {
+            camera = new THREE.PerspectiveCamera( 40, window.innerWidth / window.innerHeight, 1, 10000 );
+            camera.position.z = 3000;
+
+            scene = new THREE.Scene();
+
+            // إنشاء البطاقات (Elements) وتوزيعها العشوائي الأولي
+            for ( let i = 0; i < tableData.length; i += 5 ) {
+                const element = document.createElement( 'div' );
+                element.className = 'element';
+                
+                const atomicNumber = ( i / 5 ) + 1;
+                
+                const number = document.createElement( 'div' );
+                number.className = 'number';
+                number.textContent = atomicNumber;
+                element.appendChild( number );
+
+                const symbol = document.createElement( 'div' );
+                symbol.className = 'symbol';
+                symbol.textContent = tableData[ i ];
+                element.appendChild( symbol );
+
+                const details = document.createElement( 'div' );
+                details.className = 'details';
+                details.innerHTML = tableData[ i + 1 ] + '<br>' + tableData[ i + 2 ];
+                element.appendChild( details );
+
+                const objectCSS = new CSS3DObject( element );
+                objectCSS.position.x = Math.random() * 4000 - 2000;
+                objectCSS.position.y = Math.random() * 4000 - 2000;
+                objectCSS.position.z = Math.random() * 4000 - 2000;
+                scene.add( objectCSS );
+                objects.push( objectCSS );
+
+                // هدف الجدول (Table)
+                const objectTable = new THREE.Object3D();
+                objectTable.position.x = ( tableData[ i + 3 ] * 140 ) - 1330;
+                objectTable.position.y = - ( tableData[ i + 4 ] * 180 ) + 990;
+                targets.table.push( objectTable );
+            }
+
+            // هدف الكرة (Sphere)
+            const vector = new THREE.Vector3();
+            for ( let i = 0, l = objects.length; i < l; i ++ ) {
+                const phi = Math.acos( - 1 + ( 2 * i ) / l );
+                const theta = Math.sqrt( l * Math.PI ) * phi;
+                const objectSphere = new THREE.Object3D();
+                objectSphere.position.setFromSphericalCoords( 800, phi, theta );
+                vector.copy( objectSphere.position ).multiplyScalar( 2 );
+                objectSphere.lookAt( vector );
+                targets.sphere.push( objectSphere );
+            }
+
+            // هدف الحلزون (Helix)
+            for ( let i = 0, l = objects.length; i < l; i ++ ) {
+                const theta = i * 0.175 + Math.PI;
+                const y = - ( i * 8 ) + 450;
+                const objectHelix = new THREE.Object3D();
+                objectHelix.position.setFromCylindricalCoords( 900, theta, y );
+                vector.x = objectHelix.position.x * 2;
+                vector.y = objectHelix.position.y;
+                vector.z = objectHelix.position.z * 2;
+                objectHelix.lookAt( vector );
+                targets.helix.push( objectHelix );
+            }
+
+            // هدف الشبكة (Grid)
+            for ( let i = 0; i < objects.length; i ++ ) {
+                const objectGrid = new THREE.Object3D();
+                objectGrid.position.x = ( ( i % 5 ) * 400 ) - 800;
+                objectGrid.position.y = ( - ( Math.floor( i / 5 ) % 5 ) * 400 ) + 800;
+                objectGrid.position.z = ( Math.floor( i / 25 ) ) * 1000 - 2000;
+                targets.grid.push( objectGrid );
+            }
+
+            // إعداد العارض (Renderer)
+            renderer = new CSS3DRenderer();
+            renderer.setSize( window.innerWidth, window.innerHeight );
+            document.getElementById( 'container' ).appendChild( renderer.domElement );
+
+            // إعداد التحكم (TrackballControls)
+            controls = new TrackballControls( camera, renderer.domElement );
+            controls.minDistance = 500;
+            controls.maxDistance = 6000;
+            controls.addEventListener( 'change', render );
+
+            // إعداد الأزرار
+            const buttonTable = document.getElementById( 'table' );
+            buttonTable.addEventListener( 'click', function () { transform( targets.table, 2000 ); } );
+
+            const buttonSphere = document.getElementById( 'sphere' );
+            buttonSphere.addEventListener( 'click', function () { transform( targets.sphere, 2000 ); } );
+
+            const buttonHelix = document.getElementById( 'helix' );
+            buttonHelix.addEventListener( 'click', function () { transform( targets.helix, 2000 ); } );
+
+            const buttonGrid = document.getElementById( 'grid' );
+            buttonGrid.addEventListener( 'click', function () { transform( targets.grid, 2000 ); } );
+
+            // البدء بعرض الجدول
+            transform( targets.table, 2000 );
+
+            window.addEventListener( 'resize', onWindowResize );
+        }
+
+        // دالة تحريك العناصر باستخدام TWEEN
+        function transform( targets, duration ) {
+            TWEEN.removeAll();
+            for ( let i = 0; i < objects.length; i ++ ) {
+                const object = objects[ i ];
+                const target = targets[ i ];
+
+                new TWEEN.Tween( object.position )
+                    .to( { x: target.position.x, y: target.position.y, z: target.position.z }, Math.random() * duration + duration )
+                    .easing( TWEEN.Easing.Exponential.InOut )
+                    .start();
+
+                new TWEEN.Tween( object.rotation )
+                    .to( { x: target.rotation.x, y: target.rotation.y, z: target.rotation.z }, Math.random() * duration + duration )
+                    .easing( TWEEN.Easing.Exponential.InOut )
+                    .start();
+            }
+
+            new TWEEN.Tween( this )
+                .to( {}, duration * 2 )
+                .onUpdate( render )
+                .start();
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize( window.innerWidth, window.innerHeight );
+            render();
+        }
+
+        function animate() {
+            requestAnimationFrame( animate );
+            TWEEN.update();
+            controls.update();
+        }
+
+        function render() {
+            renderer.render( scene, camera );
+        }
+    </script>
+</body>
+</html>
